@@ -11,18 +11,27 @@ export default async (req, context) => {
 
   try {
     const body = await req.json();
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const userMessage = body.messages?.[0]?.content || '';
+
+    const geminiBody = {
+      contents: [{ parts: [{ text: userMessage }] }],
+      generationConfig: { maxOutputTokens: 2000, temperature: 0.7 },
+    };
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(geminiBody),
     });
 
     const data = await response.json();
-    return new Response(JSON.stringify(data), {
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Erreur de génération.';
+    const formatted = { content: [{ type: 'text', text }] };
+
+    return new Response(JSON.stringify(formatted), {
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
